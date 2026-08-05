@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark light">
+  <title>Core2 Port A Checker Web Installer</title>
+  <meta name="description" content="M5Stack Core2 Port A 周辺機器チェッカーを書き込むWebインストーラー">
+  <link rel="stylesheet" href="./style.css">
+  <script type="module" src="https://unpkg.com/esp-web-tools@10/dist/web/install-button.js?module"></script>
+</head>
+<body>
+  <main class="shell">
+    <section class="hero">
+      <span class="badge">M5Stack Core2 / ESP32</span>
+      <h1>Port A 周辺機器チェッカー</h1>
+      <p class="lead">開発環境をインストールせず、USB接続したCore2へブラウザからファームウェアを書き込みます。</p>
+    </section>
+
+    <section class="card warning">
+      <h2>書き込み前の安全確認</h2>
+      <p>これはCore2専用です。CoreS3には書き込まないでください。意図しない動作を防ぐため、サーボとVESCは無負荷または切り離した状態で作業してください。</p>
+    </section>
+
+    <section class="card installer">
+      <h2>書き込み</h2>
+      <ol>
+        <li>Core2をUSB Type-CケーブルでPCへ接続します。</li>
+        <li>下のボタンを押し、CP210xまたはCH9102系のCOMポートを選択します。</li>
+        <li>画面の案内に従ってインストールします。</li>
+      </ol>
+
+      <esp-web-install-button manifest="./manifest.json">
+        <button slot="activate" class="install-button">Core2へ書き込む</button>
+        <p slot="unsupported" class="unsupported">このブラウザはWeb Serial書き込みに対応していません。PC版ChromeまたはEdgeで開いてください。</p>
+        <p slot="not-allowed" class="unsupported">安全なHTTPSページから開く必要があります。</p>
+      </esp-web-install-button>
+
+      <p class="note">ポートが表示されない場合は、通信可能なUSBケーブル、USBシリアルドライバ、Core2の電源状態を確認してください。</p>
+    </section>
+
+    <section class="card">
+      <h2>書き込み後に確認できる機器</h2>
+      <div class="grid">
+        <article><strong>SERVO</strong><span>PCA9685 / I²C</span></article>
+        <article><strong>DISTANCE</strong><span>VL53L5CX / I²C</span></article>
+        <article><strong>POWER</strong><span>INA226 / I²C</span></article>
+        <article><strong>MOTOR</strong><span>VESC / UART</span></article>
+      </div>
+      <p class="note">Core2 Port Aは、黄=GPIO32、白=GPIO33、黒=GND、赤=5Vです。3.3V専用機器へ赤線の5Vを接続しないでください。</p>
+    </section>
+
+    <footer>
+      <a href="https://github.com/temesotejam/zatu">ソースコードとビルド履歴</a>
+    </footer>
+  </main>
+</body>
+</html>
