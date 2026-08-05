@@ -4,6 +4,18 @@ M5Stack Core2 のタッチ画面で Port A に接続した機器を一つずつ�
 
 既存の `m5stack-cores3-porta-peripheral-check` は変更せず、Core2用を別プロジェクトとして追加しています。
 
+## GitHub Pagesから書き込む
+
+`main`へ反映後、GitHub ActionsがCore2用ファームウェアをPlatformIOでビルドし、ESP32用の結合BINとESP Web Tools用manifestを生成してGitHub Pagesへ公開します。
+
+書き込みページ：
+
+- https://temesotejam.github.io/zatu/
+
+PC版ChromeまたはEdgeでページを開き、Core2をUSB Type-Cケーブルで接続して`Core2へ書き込む`を押します。ポート選択画面では、Core2のCP210xまたはCH9102系USBシリアルポートを選択します。
+
+これはCore2専用です。CoreS3には書き込まないでください。書き込み前は、意図しない駆動を防ぐためサーボとVESCを無負荷または切り離した状態にしてください。
+
 ## 安全方針
 
 - PCA9685 はCH0を0〜180°で操作できます。画面遷移時はPWMをFull OFFにします。
@@ -24,7 +36,7 @@ Core2 Port A は、黒=GND、赤=5V、黄=GPIO32、白=GPIO33です。**3.3V機�
 
 `MOTOR`選択中はGPIO32/GPIO33をUART TX/RX（115200 bps、8N1）に再割当てします。この間はI²Cを停止します。VESC側UARTは**3.3 V TTL**であることを確認してください。5 V/RS-232信号を直接つないではいけません。
 
-## ビルドと書込み
+## ローカルでビルド・書き込み
 
 ```powershell
 cd m5stack-core2-porta-peripheral-check
