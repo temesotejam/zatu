@@ -1,0 +1,151 @@
+name: Build Core2 firmware and deploy Pages
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "m5stack-core2-porta-peripheral-check/**"
+      - "web/**"
+      - ".github/workflows/build-core2-pages.yml"
+  pull_request:
+    paths:
+      - "m5stack-core2-porta-peripheral-check/**"
+      - "web/**"
+      - ".github/workflows/build-core2-pages.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: core2-pages-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+
+      - name: Install PlatformIO
+        run: python -m pip install --disable-pip-version-check platformio==6.1.19
+
+      - name: Build Core2 firmware
+        run: pio run --project-dir m5stack-core2-porta-peripheral-check --environment m5stack-core2
+
+      - name: Prepare merged firmware and Pages site
+        shell: bash
+        run: |
+          set -euxo pipefail
+
+          PROJECT_DIR="m5stack-core2-porta-peripheral-check"
+          BUILD_DIR="${PROJECT_DIR}/.pio/build/m5stack-core2"
+          ESPTOOL="$(find "${HOME}/.platformio/packages/tool-esptoolpy" -maxdepth 2 -type f -name esptool.py -print -quit)"
+          BOOT_APP0="$(find "${HOME}/.platformio/packages/framework-arduinoespressif32/tools/partitions" -type f -name boot_app0.bin -print -quit)"
+
+          test -s "${BUILD_DIR}/bootloader.bin"
+          test -s "${BUILD_DIR}/partitions.bin"
+          test -s "${BUILD_DIR}/firmware.bin"
+          test -n "${ESPTOOL}"
+          test -s "${BOOT_APP0}"
+
+          rm -rf site
+          mkdir -p site/firmware
+          cp -a web/. site/
+
+          python "${ESPTOOL}" --chip esp32 merge_bin \
+            -o site/firmware/core2-porta-checker.bin \
+            --flash_mode dio \
+            --flash_freq 40m \
+            --flash_size 16MB \
+            0x1000 "${BUILD_DIR}/bootloader.bin" \
+            0x8000 "${BUILD_DIR}/partitions.bin" \
+            0xe000 "${BOOT_APP0}" \
+            0x10000 "${BUILD_DIR}/firmware.bin"
+
+          test -s site/firmware/core2-porta-checker.bin
+          sha256sum site/firmware/core2-porta-checker.bin > site/firmware/core2-porta-checker.bin.sha256
+
+          VERSION="${GITHUB_SHA::7}"
+          cat > site/manifest.json <<EOF
+          {
+            "name": "M5Stack Core2 Port A Peripheral Checker",
+            "version": "${VERSION}",
+            "new_install_prompt_erase": true,
+            "new_install_improv_wait_time": 0,
+            "builds": [
+              {
+                "chipFamily": "ESP32",
+                "parts": [
+                  {
+                    "path": "firmware/core2-porta-checker.bin",
+                    "offset": 0
+                  }
+                ]
+              }
+            ]
+          }
+          EOF
+
+          python -m json.tool site/manifest.json >/dev/null
+
+          cat > site/build-info.json <<EOF
+          {
+            "repository": "${GITHUB_REPOSITORY}",
+            "commit": "${GITHUB_SHA}",
+            "runNumber": "${GITHUB_RUN_NUMBER}",
+            "runId": "${GITHUB_RUN_ID}"
+          }
+          EOF
+
+      - name: Upload firmware artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: core2-porta-checker-${{ github.run_number }}
+          path: |
+            site/firmware/core2-porta-checker.bin
+            site/firmware/core2-porta-checker.bin.sha256
+            site/manifest.json
+            site/build-info.json
+          if-no-files-found: error
+          retention-days: 14
+          compression-level: 0
+
+      - name: Configure Pages
+        if: github.ref == 'refs/heads/main'
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages artifact
+        if: github.ref == 'refs/heads/main'
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: site
+
+  deploy:
+    if: github.ref == 'refs/heads/main'
+    needs: build
+    runs-on: ubuntu-latest
+
+    permissions:
+      pages: write
+      id-token: write
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Deploy GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
